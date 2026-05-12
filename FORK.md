@@ -93,8 +93,17 @@ will see nodes silently skipped because they aren't yet `is_inside_tree()`.
 Either wait one frame (any cheap intervening call works, e.g. another
 `ping`), or verify selection with `get_selected_nodes` and retry.
 
-Further write methods (`move_node`, `reparent_node`, `run_play_mode`,
-etc.) are future work.
+*Execution control:*
+- `editor.play` `{scene_path?}` → start a play session. `scene_path` accepts
+  `"main"` (default — uses the project's `application/run/main_scene`),
+  `"current"` (the active editor tab), or any `res://...` path. Returns
+  whether a play session is now active.
+- `editor.stop_playing` → stop any running play session.
+- `editor.is_playing` → bool, whether a play session is currently active.
+
+Further write methods (`move_node`, `reparent_node`, per-property
+`get_property` for efficient single-value reads, capture of the running
+game's stdout/stderr back through the RPC) are future work.
 
 ### F4 — MCP proxy
 
@@ -121,10 +130,11 @@ Then start Godot with `--editor-rpc-port 6664` (or set `GODOT_RPC_PORT`).
 
 Tools exposed:
 - read: `godot_ping`, `godot_get_current_scene_path`, `godot_get_scene_tree`,
-  `godot_list_open_scenes`, `godot_get_selected_nodes`
+  `godot_list_open_scenes`, `godot_get_selected_nodes`, `godot_is_playing`
 - write: `godot_open_scene`, `godot_save_scene`, `godot_save_scene_as`,
   `godot_set_property`, `godot_add_node`, `godot_delete_node`,
   `godot_select_nodes`
+- execution: `godot_play`, `godot_stop_playing`
 
 ## Building
 
@@ -160,8 +170,8 @@ and push to a fresh branch on your upstream fork.
 
 ## Known v2 work
 
-- More write methods on F3 (`move_node`, `reparent_node`, `run_play_mode`,
-  per-property `get_property` for efficient single-value reads)
+- More write methods on F3 (`move_node`, `reparent_node`, per-property
+  `get_property`, capture game stdout/stderr from play sessions)
 - F3 JSON-RPC ids round-trip as `1.0` instead of `1` — Godot's `Variant`→JSON
   serializer doesn't distinguish int from float
 - F2 property dumps are verbose — a `--inspect-scene-compact` flag that

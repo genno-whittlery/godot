@@ -243,5 +243,36 @@ def godot_select_nodes(paths: list, replace: bool = True) -> list:
     return _rpc_call("editor.select_nodes", {"paths": paths, "replace": replace})
 
 
+@mcp.tool()
+def godot_play(scene_path: str | None = None) -> bool:
+    """Run the project in Play mode (spawns the game process).
+
+    Args:
+        scene_path: Which scene to launch. Options:
+            - None or "main" (default): play the project's configured main
+              scene (application/run/main_scene in project.godot).
+            - "current": play the scene currently active in the editor.
+            - Any "res://..." path: play that specific scene.
+
+    Returns True if Godot reports a play session is active after launching.
+    """
+    params: dict[str, Any] = {}
+    if scene_path is not None:
+        params["scene_path"] = scene_path
+    return _rpc_call("editor.play", params if params else None)
+
+
+@mcp.tool()
+def godot_stop_playing() -> bool:
+    """Stop any currently running play session. Safe to call when nothing is playing."""
+    return _rpc_call("editor.stop_playing")
+
+
+@mcp.tool()
+def godot_is_playing() -> bool:
+    """Return True if the editor currently has a play session running."""
+    return _rpc_call("editor.is_playing")
+
+
 if __name__ == "__main__":
     mcp.run()

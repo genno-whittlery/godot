@@ -39,6 +39,7 @@
 #include "core/variant/dictionary.h"
 #include "editor/editor_data.h"
 #include "editor/editor_node.h"
+#include "editor/run/editor_run_bar.h"
 #include "scene/main/node.h"
 
 EditorRpcServer::EditorRpcServer(int p_port) {
@@ -529,6 +530,44 @@ Variant EditorRpcServer::dispatch(const String &p_method, const Variant &p_param
 		}
 		node->queue_free();
 		return true;
+	}
+
+	if (p_method == "editor.play") {
+		EditorRunBar *bar = EditorRunBar::get_singleton();
+		if (!bar) {
+			r_has_error = true;
+			r_error_code = -32000;
+			r_error_message = "EditorRunBar not available";
+			return Variant();
+		}
+		String which = "main";
+		if (p_params.get_type() == Variant::DICTIONARY) {
+			Dictionary params = p_params;
+			if (params.has("scene_path") && params["scene_path"].get_type() == Variant::STRING) {
+				which = params["scene_path"];
+			}
+		}
+		if (which == "current") {
+			bar->play_current_scene();
+		} else if (which == "main" || which.is_empty()) {
+			bar->play_main_scene();
+		} else {
+			bar->play_custom_scene(which);
+		}
+		return bar->is_playing();
+	}
+
+	if (p_method == "editor.stop_playing") {
+		EditorRunBar *bar = EditorRunBar::get_singleton();
+		if (bar) {
+			bar->stop_playing();
+		}
+		return true;
+	}
+
+	if (p_method == "editor.is_playing") {
+		EditorRunBar *bar = EditorRunBar::get_singleton();
+		return bar ? bar->is_playing() : false;
 	}
 
 	r_has_error = true;
