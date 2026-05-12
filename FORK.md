@@ -85,6 +85,11 @@ Method set:
 - `editor.get_selected_nodes` → array of node paths currently selected.
 - `editor.select_nodes` `{paths, replace?}` → select the given nodes
   (skipping any path that doesn't resolve). `replace` defaults to true.
+- `editor.reparent_node` `{node_path, new_parent_path, keep_global_transform?}`
+  → move a node (and its subtree) to a different parent. Preserves world
+  transform by default. Rejects reparenting the root or into a descendant.
+- `editor.move_child` `{node_path, index}` → reorder a node among its
+  siblings. Returns the resulting child index.
 
 **Timing caveat**: `editor.open_scene` mounts the loaded scene into the
 editor's SceneTree on the next frame, not synchronously. A client that
@@ -112,8 +117,8 @@ Either wait one frame (any cheap intervening call works, e.g. another
   was cleared (server's count regressed below `since`), the call returns
   the full current buffer so the client can re-sync.
 
-Further write methods (`move_node`, `reparent_node`, per-property
-`get_property` for efficient single-value reads) are future work.
+Further work (per-property `get_property`, sub-resource manipulation,
+export presets, addons / EditorPlugin lifecycle) is future scope.
 
 ### F4 — MCP proxy
 
@@ -144,7 +149,7 @@ Tools exposed:
   `godot_get_recent_log`, `godot_tail_log`
 - write: `godot_open_scene`, `godot_save_scene`, `godot_save_scene_as`,
   `godot_set_property`, `godot_add_node`, `godot_delete_node`,
-  `godot_select_nodes`
+  `godot_select_nodes`, `godot_reparent_node`, `godot_move_child`
 - execution: `godot_play`, `godot_stop_playing`
 
 ## Building
@@ -181,8 +186,8 @@ and push to a fresh branch on your upstream fork.
 
 ## Known v2 work
 
-- More write methods on F3 (`move_node`, `reparent_node`, per-property
-  `get_property`, incremental log tailing with a since-cursor)
+- More write methods on F3 (per-property `get_property`, sub-resource
+  manipulation, export-preset control)
 - F3 JSON-RPC ids round-trip as `1.0` instead of `1` — Godot's `Variant`→JSON
   serializer doesn't distinguish int from float
 - F2 property dumps are verbose — a `--inspect-scene-compact` flag that

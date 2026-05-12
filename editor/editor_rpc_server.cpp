@@ -490,6 +490,102 @@ Variant EditorRpcServer::dispatch(const String &p_method, const Variant &p_param
 		return resolved;
 	}
 
+	if (p_method == "editor.reparent_node") {
+		if (p_params.get_type() != Variant::DICTIONARY) {
+			r_has_error = true;
+			r_error_code = -32602;
+			r_error_message = "Invalid params: expected object with 'node_path', 'new_parent_path' (and optional 'keep_global_transform')";
+			return Variant();
+		}
+		Dictionary params = p_params;
+		if (!params.has("node_path") || params["node_path"].get_type() != Variant::STRING ||
+				!params.has("new_parent_path") || params["new_parent_path"].get_type() != Variant::STRING) {
+			r_has_error = true;
+			r_error_code = -32602;
+			r_error_message = "Invalid params: 'node_path' and 'new_parent_path' must both be strings";
+			return Variant();
+		}
+		Node *scene_root = en->get_edited_scene();
+		if (!scene_root) {
+			r_has_error = true;
+			r_error_code = -32000;
+			r_error_message = "No edited scene";
+			return Variant();
+		}
+		Node *node = scene_root->get_node_or_null(NodePath(String(params["node_path"])));
+		Node *new_parent = scene_root->get_node_or_null(NodePath(String(params["new_parent_path"])));
+		if (!node) {
+			r_has_error = true;
+			r_error_code = -32000;
+			r_error_message = "Source node not found: " + String(params["node_path"]);
+			return Variant();
+		}
+		if (!new_parent) {
+			r_has_error = true;
+			r_error_code = -32000;
+			r_error_message = "Target parent not found: " + String(params["new_parent_path"]);
+			return Variant();
+		}
+		if (node == scene_root) {
+			r_has_error = true;
+			r_error_code = -32000;
+			r_error_message = "Cannot reparent the scene root";
+			return Variant();
+		}
+		if (new_parent == node || node->is_ancestor_of(new_parent)) {
+			r_has_error = true;
+			r_error_code = -32000;
+			r_error_message = "Cannot reparent a node under itself or one of its descendants";
+			return Variant();
+		}
+		bool keep_transform = !params.has("keep_global_transform") || (bool)params["keep_global_transform"];
+		node->reparent(new_parent, keep_transform);
+		// Owner is preserved by reparent (it stays the scene root). Confirm by
+		// reading it back.
+		node->set_owner(scene_root);
+		return String(scene_root->get_path_to(node));
+	}
+
+	if (p_method == "editor.move_child") {
+		if (p_params.get_type() != Variant::DICTIONARY) {
+			r_has_error = true;
+			r_error_code = -32602;
+			r_error_message = "Invalid params: expected object with 'node_path', 'index'";
+			return Variant();
+		}
+		Dictionary params = p_params;
+		if (!params.has("node_path") || params["node_path"].get_type() != Variant::STRING || !params.has("index")) {
+			r_has_error = true;
+			r_error_code = -32602;
+			r_error_message = "Invalid params: 'node_path' (string) and 'index' (int) required";
+			return Variant();
+		}
+		Node *scene_root = en->get_edited_scene();
+		if (!scene_root) {
+			r_has_error = true;
+			r_error_code = -32000;
+			r_error_message = "No edited scene";
+			return Variant();
+		}
+		Node *node = scene_root->get_node_or_null(NodePath(String(params["node_path"])));
+		if (!node) {
+			r_has_error = true;
+			r_error_code = -32000;
+			r_error_message = "Node not found: " + String(params["node_path"]);
+			return Variant();
+		}
+		Node *parent = node->get_parent();
+		if (!parent) {
+			r_has_error = true;
+			r_error_code = -32000;
+			r_error_message = "Node has no parent (probably the scene root)";
+			return Variant();
+		}
+		int index = (int)params["index"];
+		parent->move_child(node, index);
+		return node->get_index();
+	}
+
 	if (p_method == "editor.delete_node") {
 		if (p_params.get_type() != Variant::DICTIONARY) {
 			r_has_error = true;

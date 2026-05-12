@@ -191,6 +191,45 @@ def godot_add_node(parent_path: str, class_: str, name: str | None = None) -> di
 
 
 @mcp.tool()
+def godot_reparent_node(node_path: str, new_parent_path: str, keep_global_transform: bool = True) -> str:
+    """Move a node to a new parent in the currently edited scene.
+
+    Preserves the entire subtree (children, properties, owners stay intact).
+    For spatial nodes (Node2D / Node3D), the world transform is preserved by
+    default so the visible position/rotation/scale stays the same; pass
+    keep_global_transform=False to keep the local transform instead.
+
+    Args:
+        node_path: Path of the node to reparent (relative to scene root).
+        new_parent_path: Path of the new parent.
+        keep_global_transform: If True, preserve world transform; if False,
+            preserve local transform.
+
+    Returns the node's new path. Errors on attempts to reparent into the
+    node itself or one of its descendants.
+    """
+    return _rpc_call("editor.reparent_node", {
+        "node_path": node_path,
+        "new_parent_path": new_parent_path,
+        "keep_global_transform": keep_global_transform,
+    })
+
+
+@mcp.tool()
+def godot_move_child(node_path: str, index: int) -> int:
+    """Reorder a node among its siblings.
+
+    Args:
+        node_path: Path of the node to move (relative to scene root).
+        index: New child index under its current parent. Negative indices
+            count from the end (-1 = last).
+
+    Returns the node's resulting child index.
+    """
+    return _rpc_call("editor.move_child", {"node_path": node_path, "index": index})
+
+
+@mcp.tool()
 def godot_delete_node(node_path: str) -> bool:
     """Delete a node from the currently edited scene.
 
