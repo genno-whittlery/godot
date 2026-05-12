@@ -221,6 +221,7 @@ static String locale;
 static String log_file;
 static String log_format;
 static String inspect_scene_path;
+static int editor_rpc_port = 0;
 static bool show_help = false;
 static uint64_t quit_after = 0;
 static ProcessID editor_pid = 0;
@@ -627,6 +628,7 @@ void Main::print_help(const char *p_binary) {
 	print_help_option("--log-file <file>", "Write output/error log to the specified path instead of the default location defined by the project.\n");
 	print_help_option("--log-format <text|json>", "Output format for stdout/stderr log lines. 'text' (default) is human-readable; 'json' emits one JSON object per line (NDJSON) with timestamp, level, message, and error context.\n");
 	print_help_option("--inspect-scene <path>", "Load the scene at <path> headlessly, dump its node tree (names, classes, editor-visible properties, children) to stdout as JSON, then exit.\n");
+	print_help_option("--editor-rpc-port <port>", "Start a JSON-RPC 2.0 server on 127.0.0.1:<port> while the editor runs. Methods: ping, editor.get_current_scene_path, editor.get_scene_tree, editor.list_open_scenes. Line-delimited.\n", CLI_OPTION_AVAILABILITY_EDITOR);
 	print_help_option("", "<file> path should be absolute or relative to the project directory.\n");
 	print_help_option("--write-movie <file>", "Write a video to the specified path (usually with .avi or .png extension).\n");
 	print_help_option("", "--fixed-fps is forced when enabled, but it can be used to change movie FPS.\n");
@@ -1543,6 +1545,19 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 				cmdline_tool = true;
 			} else {
 				OS::get_singleton()->print("Missing --inspect-scene path argument, aborting.\n");
+				goto error;
+			}
+		} else if (arg == "--editor-rpc-port") { // editor JSON-RPC server port
+
+			if (N) {
+				editor_rpc_port = N->get().to_int();
+				N = N->next();
+				if (editor_rpc_port <= 0 || editor_rpc_port > 65535) {
+					OS::get_singleton()->print("Invalid --editor-rpc-port value (must be 1..65535), aborting.\n");
+					goto error;
+				}
+			} else {
+				OS::get_singleton()->print("Missing --editor-rpc-port value, aborting.\n");
 				goto error;
 			}
 		} else if (arg == "--profiling") { // enable profiling
@@ -4007,6 +4022,10 @@ void Main::setup_boot_logo() {
 
 String Main::get_locale_override() {
 	return locale;
+}
+
+int Main::get_editor_rpc_port() {
+	return editor_rpc_port;
 }
 
 // everything the main loop needs to know about frame timings

@@ -72,6 +72,7 @@ public:
 	static Error setup(const char *execpath, int argc, char *argv[], bool p_second_phase = true);
 	static Error setup2(bool p_show_boot_logo = true); // The thread calling setup2() will effectively become the main thread.
 	static String get_locale_override();
+	static int get_editor_rpc_port();
 	static void setup_boot_logo();
 	static Error test_setup();
 	static void test_cleanup();

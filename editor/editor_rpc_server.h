@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*  scene_inspector.h                                                     */
+/*  editor_rpc_server.h                                                   */
 /**************************************************************************/
 /*                         This file is part of:                          */
 /*                             GODOT ENGINE                               */
@@ -30,29 +30,46 @@
 
 #pragma once
 
+#include "core/io/stream_peer_tcp.h"
+#include "core/io/tcp_server.h"
 #include "core/string/ustring.h"
-#include "core/variant/dictionary.h"
-
-class Node;
+#include "core/templates/vector.h"
+#include "core/variant/variant.h"
 
 /**
- * Loads a packed scene from disk, instantiates it without entering the SceneTree,
- * and dumps the resulting node hierarchy (node names, classes, editor-visible
- * properties, children) as a structured Dictionary. Intended for the
- * `--inspect-scene` command-line tool used by external tooling/agents.
+ * Line-delimited JSON-RPC 2.0 server, bound to 127.0.0.1:<port>, intended for
+ * external tooling (editors, agents) to query and (later) drive the running
+ * Godot editor. Polled from the editor's main-thread process notification,
+ * so all method handlers run on the main thread without locking.
+ *
+ * MVP method set (read-only):
+ *   - ping
+ *   - editor.get_current_scene_path
+ *   - editor.get_scene_tree
+ *   - editor.list_open_scenes
  */
-class SceneInspector {
+class EditorRpcServer {
 public:
-	// Returns a Dictionary describing the scene at p_scene_path. On error, the
-	// returned Dictionary has an "error" key with a human-readable message
-	// (and no "root" key).
-	static Dictionary inspect(const String &p_scene_path);
+	EditorRpcServer(int p_port);
+	~EditorRpcServer();
 
-	// Convenience: inspect() then JSON-stringify the result (compact form).
-	static String inspect_to_json(const String &p_scene_path);
+	bool is_listening() const { return listening; }
+	int get_port() const { return port; }
 
-	// Recursively dumps a live node (already in the SceneTree or freshly instantiated)
-	// into the same structured representation used by inspect(). Reused by the
-	// editor RPC server to introspect the currently-open scene.
-	static Dictionary dump_node(Node *p_node);
+	// Drives accept/read/dispatch. Safe to call every frame; cheap when idle.
+	void poll();
+
+private:
+	int port = 0;
+	bool listening = false;
+	Ref<TCPServer> server;
+	Vector<Ref<StreamPeerTCP>> clients;
+	Vector<String> client_buffers;
+
+	void process_client(int p_client_idx);
+	void handle_request_line(int p_client_idx, const String &p_line);
+	Variant dispatch(const String &p_method, const Variant &p_params, bool &r_has_error, int &r_error_code, String &r_error_message);
+	void send_response(int p_client_idx, const Variant &p_result, const Variant &p_id);
+	void send_error(int p_client_idx, int p_code, const String &p_message, const Variant &p_id);
+	void send_raw_line(int p_client_idx, const String &p_line);
 };

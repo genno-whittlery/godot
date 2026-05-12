@@ -66,6 +66,7 @@
 #include "editor/docks/signals_dock.h"
 #include "editor/editor_data.h"
 #include "editor/editor_interface.h"
+#include "editor/editor_rpc_server.h"
 #include "editor/editor_log.h"
 #include "editor/editor_main_screen.h"
 #include "editor/editor_string_names.h"
@@ -881,6 +882,10 @@ void EditorNode::_notification(int p_what) {
 		} break;
 
 		case NOTIFICATION_PROCESS: {
+			if (rpc_server) {
+				rpc_server->poll();
+			}
+
 			if (editor_data.is_scene_changed(-1)) {
 				scene_tabs->update_scene_tabs();
 			}
@@ -9504,6 +9509,10 @@ EditorNode::EditorNode() {
 
 	set_process(true);
 
+	if (Main::get_editor_rpc_port() > 0) {
+		rpc_server = memnew(EditorRpcServer(Main::get_editor_rpc_port()));
+	}
+
 	open_imported = memnew(ConfirmationDialog);
 	open_imported->set_ok_button_text(TTR("Open Anyway"));
 	new_inherited_button = open_imported->add_button(TTR("New Inherited"), !DisplayServer::get_singleton()->get_swap_cancel_ok(), "inherit");
@@ -9606,6 +9615,11 @@ EditorNode::EditorNode() {
 }
 
 EditorNode::~EditorNode() {
+	if (rpc_server) {
+		memdelete(rpc_server);
+		rpc_server = nullptr;
+	}
+
 	EditorInspector::cleanup_plugins();
 	EditorTranslationParser::get_singleton()->clean_parsers();
 	ResourceImporterScene::clean_up_importer_plugins();

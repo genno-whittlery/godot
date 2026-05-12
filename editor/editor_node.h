@@ -45,6 +45,7 @@ typedef bool (*EditorBuildCallback)();
 class AcceptDialog;
 class ColorPicker;
 class ConfirmationDialog;
+class EditorRpcServer;
 class Control;
 class FileDialog;
 class HBoxContainer;
@@ -1035,6 +1036,8 @@ public:
 	void redo();
 
 	int execute_and_show_output(const String &p_title, const String &p_path, const List<String> &p_arguments, bool p_close_on_ok = true, bool p_close_on_errors = false, String *r_output = nullptr);
+
+	EditorRpcServer *rpc_server = nullptr;
 
 	EditorNode();
 	~EditorNode();
