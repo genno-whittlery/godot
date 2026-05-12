@@ -201,6 +201,140 @@ Variant EditorRpcServer::dispatch(const String &p_method, const Variant &p_param
 		return arr;
 	}
 
+	if (p_method == "editor.open_scene") {
+		if (p_params.get_type() != Variant::DICTIONARY) {
+			r_has_error = true;
+			r_error_code = -32602;
+			r_error_message = "Invalid params: expected object with 'path'";
+			return Variant();
+		}
+		Dictionary params = p_params;
+		if (!params.has("path") || params["path"].get_type() != Variant::STRING) {
+			r_has_error = true;
+			r_error_code = -32602;
+			r_error_message = "Invalid params: missing or non-string 'path'";
+			return Variant();
+		}
+		String path = params["path"];
+		Error err = en->load_scene(path);
+		if (err != OK) {
+			r_has_error = true;
+			r_error_code = -32000;
+			r_error_message = vformat("load_scene('%s') failed (error %d)", path, (int)err);
+			return Variant();
+		}
+		Node *root = en->get_edited_scene();
+		return root ? root->get_scene_file_path() : path;
+	}
+
+	if (p_method == "editor.save_scene") {
+		Node *root = en->get_edited_scene();
+		if (!root) {
+			r_has_error = true;
+			r_error_code = -32000;
+			r_error_message = "No edited scene to save";
+			return Variant();
+		}
+		String path = root->get_scene_file_path();
+		if (path.is_empty()) {
+			r_has_error = true;
+			r_error_code = -32000;
+			r_error_message = "Edited scene has no file path; use editor.save_scene_as (not yet implemented)";
+			return Variant();
+		}
+		en->save_scene_to_path(path, false);
+		return path;
+	}
+
+	if (p_method == "editor.set_property") {
+		if (p_params.get_type() != Variant::DICTIONARY) {
+			r_has_error = true;
+			r_error_code = -32602;
+			r_error_message = "Invalid params: expected object with 'node_path', 'property', 'value'";
+			return Variant();
+		}
+		Dictionary params = p_params;
+		if (!params.has("node_path") || params["node_path"].get_type() != Variant::STRING) {
+			r_has_error = true;
+			r_error_code = -32602;
+			r_error_message = "Invalid params: missing or non-string 'node_path'";
+			return Variant();
+		}
+		if (!params.has("property") || params["property"].get_type() != Variant::STRING) {
+			r_has_error = true;
+			r_error_code = -32602;
+			r_error_message = "Invalid params: missing or non-string 'property'";
+			return Variant();
+		}
+		Node *scene_root = en->get_edited_scene();
+		if (!scene_root) {
+			r_has_error = true;
+			r_error_code = -32000;
+			r_error_message = "No edited scene";
+			return Variant();
+		}
+		String node_path = params["node_path"];
+		Node *node = scene_root->get_node_or_null(NodePath(node_path));
+		if (!node) {
+			r_has_error = true;
+			r_error_code = -32000;
+			r_error_message = "Node not found: " + node_path;
+			return Variant();
+		}
+		String property = params["property"];
+		Variant value = params["value"];
+
+		// Best-effort Array → Vector2/3/4/Color coercion. JSON has no native
+		// vector types, so the conventional encoding is a flat array of numbers.
+		if (value.get_type() == Variant::ARRAY) {
+			Variant::Type prop_type = Variant::NIL;
+			List<PropertyInfo> plist;
+			node->get_property_list(&plist);
+			for (const PropertyInfo &pi : plist) {
+				if (pi.name == property) {
+					prop_type = pi.type;
+					break;
+				}
+			}
+			Array arr = value;
+			auto as_f = [&](int i) { return arr.size() > i ? (real_t)(double)arr[i] : (real_t)0.0; };
+			switch (prop_type) {
+				case Variant::VECTOR2:
+					if (arr.size() == 2) {
+						value = Vector2(as_f(0), as_f(1));
+					}
+					break;
+				case Variant::VECTOR3:
+					if (arr.size() == 3) {
+						value = Vector3(as_f(0), as_f(1), as_f(2));
+					}
+					break;
+				case Variant::VECTOR4:
+					if (arr.size() == 4) {
+						value = Vector4(as_f(0), as_f(1), as_f(2), as_f(3));
+					}
+					break;
+				case Variant::COLOR:
+					if (arr.size() == 3 || arr.size() == 4) {
+						value = Color(as_f(0), as_f(1), as_f(2), arr.size() == 4 ? as_f(3) : (real_t)1.0);
+					}
+					break;
+				default:
+					break;
+			}
+		}
+
+		bool valid = false;
+		node->set(property, value, &valid);
+		if (!valid) {
+			r_has_error = true;
+			r_error_code = -32000;
+			r_error_message = vformat("Property '%s' on node '%s' (%s) could not be set (value type: %s)", property, node_path, node->get_class(), Variant::get_type_name(value.get_type()));
+			return Variant();
+		}
+		return node->get(property);
+	}
+
 	r_has_error = true;
 	r_error_code = -32601;
 	r_error_message = "Method not found: " + p_method;

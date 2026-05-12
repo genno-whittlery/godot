@@ -62,13 +62,23 @@ echo '{"jsonrpc":"2.0","method":"ping","id":1}' | nc 127.0.0.1 6664
 # -> {"jsonrpc":"2.0","result":"pong","id":1}
 ```
 
-Initial method set (read-only):
+Method set:
+
+*Read:*
 - `ping` → `"pong"`
 - `editor.get_current_scene_path` → string
 - `editor.get_scene_tree` → nested node dump (same shape as F2)
 - `editor.list_open_scenes` → array of `{path, root_name, root_class}`
 
-Write methods (`open_scene`, `save_scene`, `set_property`, …) are future work.
+*Write:*
+- `editor.open_scene` `{path}` → opens scene as new active tab
+- `editor.save_scene` → saves current scene to its existing path
+- `editor.set_property` `{node_path, property, value}` → sets a property on
+  a node in the active scene. JSON arrays of length 2/3/4 are coerced to
+  Vector2/3/4 or Color when the target property is one of those types.
+
+Further write methods (`save_scene_as`, `add_node`, `delete_node`,
+`select_nodes`, etc.) are future work.
 
 ### F4 — MCP proxy
 
@@ -92,8 +102,11 @@ claude mcp add godot-fork \
 ```
 
 Then start Godot with `--editor-rpc-port 6664` (or set `GODOT_RPC_PORT`).
-Tools exposed: `godot_ping`, `godot_get_current_scene_path`,
-`godot_get_scene_tree`, `godot_list_open_scenes`.
+
+Tools exposed:
+- read: `godot_ping`, `godot_get_current_scene_path`, `godot_get_scene_tree`,
+  `godot_list_open_scenes`
+- write: `godot_open_scene`, `godot_save_scene`, `godot_set_property`
 
 ## Building
 
@@ -113,10 +126,11 @@ M1 Max; incremental builds touching only `main.cpp` or `editor_*.cpp` are
 upstream/master              godotengine/godot tip
 └─ master                    local mirror, leave clean
    └─ fork/main              integration trunk (unused so far)
-      └─ feature/json-output       F1 — small, additive, plausible upstream PR
-         └─ feature/scene-inspect  F2 — also plausible upstream PR
-            └─ feature/editor-rpc  F3 — bigger surface, harder upstream sell
-               └─ feature/mcp-server  F4 — out-of-tree, unlikely upstream
+      └─ feature/json-output            F1 — small, additive, plausible upstream PR
+         └─ feature/scene-inspect       F2 — also plausible upstream PR
+            └─ feature/editor-rpc       F3 — bigger surface, harder upstream sell
+               └─ feature/mcp-server    F4 — out-of-tree, unlikely upstream
+                  └─ feature/editor-rpc-writes  F5 — write methods on F3 (open/save/set_property)
 ```
 
 Each `feature/*` branch is meant to rebase cleanly onto `upstream/master`. To
@@ -128,11 +142,14 @@ and push to a fresh branch on your upstream fork.
 
 ## Known v2 work
 
-- Write methods on F3 (`editor.open_scene`, `editor.save_scene`,
-  `editor.set_property`, `editor.add_node`, `editor.delete_node`)
+- More write methods on F3 (`save_scene_as`, `add_node`, `delete_node`,
+  `select_nodes`, `get_selected_nodes`, `run_play_mode`)
 - F3 JSON-RPC ids round-trip as `1.0` instead of `1` — Godot's `Variant`→JSON
   serializer doesn't distinguish int from float
 - F2 property dumps are verbose — a `--inspect-scene-compact` flag that
   only emits non-default values would be more useful for diffing
 - F4 currently opens one TCP connection per call; persistent connection would
   matter once write methods land
+- F5 `set_property` coercion currently handles Vector2/3/4 and Color from
+  flat arrays; extending to Transform2D/3D, Rect2, AABB, NodePath etc. would
+  make the API more complete

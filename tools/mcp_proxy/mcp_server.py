@@ -126,5 +126,48 @@ def godot_list_open_scenes() -> list:
     return _rpc_call("editor.list_open_scenes")
 
 
+@mcp.tool()
+def godot_open_scene(path: str) -> str:
+    """Open a scene in the editor, making it the currently edited scene.
+
+    Args:
+        path: Resource path of the scene to open (e.g. "res://main.tscn").
+
+    Returns the path of the now-current scene on success.
+    """
+    return _rpc_call("editor.open_scene", {"path": path})
+
+
+@mcp.tool()
+def godot_save_scene() -> str:
+    """Save the currently edited scene to its existing file path.
+
+    Returns the path that was saved. Errors if no scene is open or the
+    scene has no file path yet (use save-as instead, not yet implemented).
+    """
+    return _rpc_call("editor.save_scene")
+
+
+@mcp.tool()
+def godot_set_property(node_path: str, property: str, value: Any) -> Any:
+    """Set a property on a node in the currently edited scene.
+
+    Args:
+        node_path: Path of the node relative to the scene root (e.g. "Sprite",
+            "UI/Label", "."). The root is referred to as ".".
+        property: Property name (e.g. "position", "text", "modulate").
+        value: New value. Plain JSON types (string, number, bool) are passed
+            through. JSON arrays of length 2/3/4 are coerced to Vector2/3/4 or
+            Color when the target property is one of those types.
+
+    Returns the value after the set (which may be coerced by Godot).
+    """
+    return _rpc_call("editor.set_property", {
+        "node_path": node_path,
+        "property": property,
+        "value": value,
+    })
+
+
 if __name__ == "__main__":
     mcp.run()
