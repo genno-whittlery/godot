@@ -204,5 +204,44 @@ def godot_delete_node(node_path: str) -> bool:
     return _rpc_call("editor.delete_node", {"node_path": node_path})
 
 
+@mcp.tool()
+def godot_save_scene_as(path: str) -> str:
+    """Save the currently edited scene to a new file path.
+
+    Args:
+        path: Destination resource path (e.g. "res://copy.tscn"). The scene's
+            file path becomes this new path.
+
+    Returns the path that was saved.
+    """
+    return _rpc_call("editor.save_scene_as", {"path": path})
+
+
+@mcp.tool()
+def godot_get_selected_nodes() -> list:
+    """Return the paths of all nodes currently selected in the editor.
+
+    Paths are relative to the active scene root. Returns an empty array if
+    nothing is selected.
+    """
+    return _rpc_call("editor.get_selected_nodes")
+
+
+@mcp.tool()
+def godot_select_nodes(paths: list, replace: bool = True) -> list:
+    """Select one or more nodes in the editor.
+
+    Args:
+        paths: Array of node paths (relative to the scene root) to select.
+            Paths that do not resolve to a node are silently skipped.
+        replace: If True (default), the existing selection is cleared first.
+            If False, the given nodes are added to the current selection.
+
+    Returns the paths that were actually selected (paths missing from the
+    scene are filtered out).
+    """
+    return _rpc_call("editor.select_nodes", {"paths": paths, "replace": replace})
+
+
 if __name__ == "__main__":
     mcp.run()

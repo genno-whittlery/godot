@@ -81,9 +81,20 @@ Method set:
   Returns `{name, class, path}`.
 - `editor.delete_node` `{node_path}` → remove a node (and its descendants)
   from the scene. The scene root itself cannot be deleted.
+- `editor.save_scene_as` `{path}` → save the current scene to a new path.
+- `editor.get_selected_nodes` → array of node paths currently selected.
+- `editor.select_nodes` `{paths, replace?}` → select the given nodes
+  (skipping any path that doesn't resolve). `replace` defaults to true.
 
-Further write methods (`save_scene_as`, `select_nodes`, `move_node`,
-`reparent_node`, `run_play_mode`, etc.) are future work.
+**Timing caveat**: `editor.open_scene` mounts the loaded scene into the
+editor's SceneTree on the next frame, not synchronously. A client that
+calls `open_scene` and `select_nodes` back-to-back in the same RPC poll
+will see nodes silently skipped because they aren't yet `is_inside_tree()`.
+Either wait one frame (any cheap intervening call works, e.g. another
+`ping`), or verify selection with `get_selected_nodes` and retry.
+
+Further write methods (`move_node`, `reparent_node`, `run_play_mode`,
+etc.) are future work.
 
 ### F4 — MCP proxy
 
@@ -110,9 +121,10 @@ Then start Godot with `--editor-rpc-port 6664` (or set `GODOT_RPC_PORT`).
 
 Tools exposed:
 - read: `godot_ping`, `godot_get_current_scene_path`, `godot_get_scene_tree`,
-  `godot_list_open_scenes`
-- write: `godot_open_scene`, `godot_save_scene`, `godot_set_property`,
-  `godot_add_node`, `godot_delete_node`
+  `godot_list_open_scenes`, `godot_get_selected_nodes`
+- write: `godot_open_scene`, `godot_save_scene`, `godot_save_scene_as`,
+  `godot_set_property`, `godot_add_node`, `godot_delete_node`,
+  `godot_select_nodes`
 
 ## Building
 
@@ -148,8 +160,8 @@ and push to a fresh branch on your upstream fork.
 
 ## Known v2 work
 
-- More write methods on F3 (`save_scene_as`, `select_nodes`,
-  `get_selected_nodes`, `move_node`, `reparent_node`, `run_play_mode`)
+- More write methods on F3 (`move_node`, `reparent_node`, `run_play_mode`,
+  per-property `get_property` for efficient single-value reads)
 - F3 JSON-RPC ids round-trip as `1.0` instead of `1` — Godot's `Variant`→JSON
   serializer doesn't distinguish int from float
 - F2 property dumps are verbose — a `--inspect-scene-compact` flag that

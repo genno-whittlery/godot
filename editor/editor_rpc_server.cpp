@@ -401,6 +401,93 @@ Variant EditorRpcServer::dispatch(const String &p_method, const Variant &p_param
 		return result;
 	}
 
+	if (p_method == "editor.save_scene_as") {
+		if (p_params.get_type() != Variant::DICTIONARY) {
+			r_has_error = true;
+			r_error_code = -32602;
+			r_error_message = "Invalid params: expected object with 'path'";
+			return Variant();
+		}
+		Dictionary params = p_params;
+		if (!params.has("path") || params["path"].get_type() != Variant::STRING) {
+			r_has_error = true;
+			r_error_code = -32602;
+			r_error_message = "Invalid params: missing or non-string 'path'";
+			return Variant();
+		}
+		Node *root = en->get_edited_scene();
+		if (!root) {
+			r_has_error = true;
+			r_error_code = -32000;
+			r_error_message = "No edited scene to save";
+			return Variant();
+		}
+		String path = params["path"];
+		en->save_scene_to_path(path, false);
+		return path;
+	}
+
+	if (p_method == "editor.get_selected_nodes") {
+		Node *scene_root = en->get_edited_scene();
+		EditorSelection *sel = en->get_editor_selection();
+		Array arr;
+		if (!sel || !scene_root) {
+			return arr;
+		}
+		List<Node *> nodes = sel->get_full_selected_node_list();
+		for (Node *n : nodes) {
+			arr.push_back(String(scene_root->get_path_to(n)));
+		}
+		return arr;
+	}
+
+	if (p_method == "editor.select_nodes") {
+		if (p_params.get_type() != Variant::DICTIONARY) {
+			r_has_error = true;
+			r_error_code = -32602;
+			r_error_message = "Invalid params: expected object with 'paths' (array)";
+			return Variant();
+		}
+		Dictionary params = p_params;
+		if (!params.has("paths") || params["paths"].get_type() != Variant::ARRAY) {
+			r_has_error = true;
+			r_error_code = -32602;
+			r_error_message = "Invalid params: missing or non-array 'paths'";
+			return Variant();
+		}
+		Node *scene_root = en->get_edited_scene();
+		EditorSelection *sel = en->get_editor_selection();
+		if (!scene_root || !sel) {
+			r_has_error = true;
+			r_error_code = -32000;
+			r_error_message = "No edited scene";
+			return Variant();
+		}
+		bool replace = !params.has("replace") || (bool)params["replace"];
+		if (replace) {
+			sel->clear();
+		}
+		Array paths = params["paths"];
+		Array resolved;
+		for (int i = 0; i < paths.size(); i++) {
+			if (paths[i].get_type() != Variant::STRING) {
+				continue;
+			}
+			Node *node = scene_root->get_node_or_null(NodePath(String(paths[i])));
+			// EditorSelection::add_node ERR_FAILs silently if the node is not
+			// inside the editor's SceneTree. The edited scene's in-tree state
+			// is deferred for one frame after editor.open_scene, so a client
+			// that opens-then-selects in the same RPC poll cycle would see
+			// nodes "skipped" here. Callers should either give the editor a
+			// frame to settle or check get_selected_nodes afterwards.
+			if (node && node->is_inside_tree()) {
+				sel->add_node(node);
+				resolved.push_back(String(scene_root->get_path_to(node)));
+			}
+		}
+		return resolved;
+	}
+
 	if (p_method == "editor.delete_node") {
 		if (p_params.get_type() != Variant::DICTIONARY) {
 			r_has_error = true;
