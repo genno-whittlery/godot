@@ -76,9 +76,14 @@ Method set:
 - `editor.set_property` `{node_path, property, value}` → sets a property on
   a node in the active scene. JSON arrays of length 2/3/4 are coerced to
   Vector2/3/4 or Color when the target property is one of those types.
+- `editor.add_node` `{parent_path, class, name?}` → instantiate a Node
+  subclass, parent it, owner-link to the scene root so it persists on save.
+  Returns `{name, class, path}`.
+- `editor.delete_node` `{node_path}` → remove a node (and its descendants)
+  from the scene. The scene root itself cannot be deleted.
 
-Further write methods (`save_scene_as`, `add_node`, `delete_node`,
-`select_nodes`, etc.) are future work.
+Further write methods (`save_scene_as`, `select_nodes`, `move_node`,
+`reparent_node`, `run_play_mode`, etc.) are future work.
 
 ### F4 — MCP proxy
 
@@ -106,7 +111,8 @@ Then start Godot with `--editor-rpc-port 6664` (or set `GODOT_RPC_PORT`).
 Tools exposed:
 - read: `godot_ping`, `godot_get_current_scene_path`, `godot_get_scene_tree`,
   `godot_list_open_scenes`
-- write: `godot_open_scene`, `godot_save_scene`, `godot_set_property`
+- write: `godot_open_scene`, `godot_save_scene`, `godot_set_property`,
+  `godot_add_node`, `godot_delete_node`
 
 ## Building
 
@@ -142,8 +148,8 @@ and push to a fresh branch on your upstream fork.
 
 ## Known v2 work
 
-- More write methods on F3 (`save_scene_as`, `add_node`, `delete_node`,
-  `select_nodes`, `get_selected_nodes`, `run_play_mode`)
+- More write methods on F3 (`save_scene_as`, `select_nodes`,
+  `get_selected_nodes`, `move_node`, `reparent_node`, `run_play_mode`)
 - F3 JSON-RPC ids round-trip as `1.0` instead of `1` — Godot's `Variant`→JSON
   serializer doesn't distinguish int from float
 - F2 property dumps are verbose — a `--inspect-scene-compact` flag that

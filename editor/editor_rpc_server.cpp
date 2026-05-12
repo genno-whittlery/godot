@@ -33,6 +33,7 @@
 #include "core/io/ip.h"
 #include "core/io/json.h"
 #include "core/io/scene_inspector.h"
+#include "core/object/class_db.h"
 #include "core/string/print_string.h"
 #include "core/variant/array.h"
 #include "core/variant/dictionary.h"
@@ -333,6 +334,114 @@ Variant EditorRpcServer::dispatch(const String &p_method, const Variant &p_param
 			return Variant();
 		}
 		return node->get(property);
+	}
+
+	if (p_method == "editor.add_node") {
+		if (p_params.get_type() != Variant::DICTIONARY) {
+			r_has_error = true;
+			r_error_code = -32602;
+			r_error_message = "Invalid params: expected object with 'parent_path', 'class' (and optional 'name')";
+			return Variant();
+		}
+		Dictionary params = p_params;
+		if (!params.has("parent_path") || params["parent_path"].get_type() != Variant::STRING) {
+			r_has_error = true;
+			r_error_code = -32602;
+			r_error_message = "Invalid params: missing or non-string 'parent_path' (use '.' for the scene root)";
+			return Variant();
+		}
+		if (!params.has("class") || params["class"].get_type() != Variant::STRING) {
+			r_has_error = true;
+			r_error_code = -32602;
+			r_error_message = "Invalid params: missing or non-string 'class'";
+			return Variant();
+		}
+		Node *scene_root = en->get_edited_scene();
+		if (!scene_root) {
+			r_has_error = true;
+			r_error_code = -32000;
+			r_error_message = "No edited scene";
+			return Variant();
+		}
+		String parent_path = params["parent_path"];
+		Node *parent = scene_root->get_node_or_null(NodePath(parent_path));
+		if (!parent) {
+			r_has_error = true;
+			r_error_code = -32000;
+			r_error_message = "Parent node not found: " + parent_path;
+			return Variant();
+		}
+		String class_name = params["class"];
+		if (!ClassDB::class_exists(class_name) || !ClassDB::is_parent_class(class_name, "Node")) {
+			r_has_error = true;
+			r_error_code = -32000;
+			r_error_message = vformat("Class '%s' is not a known Node subclass", class_name);
+			return Variant();
+		}
+		Object *obj = ClassDB::instantiate(class_name);
+		Node *node = Object::cast_to<Node>(obj);
+		if (!node) {
+			if (obj) {
+				memdelete(obj);
+			}
+			r_has_error = true;
+			r_error_code = -32000;
+			r_error_message = vformat("Failed to instantiate '%s'", class_name);
+			return Variant();
+		}
+		String name = params.has("name") && params["name"].get_type() == Variant::STRING ? String(params["name"]) : class_name;
+		node->set_name(name);
+		parent->add_child(node, true /* readable name → disambiguates collisions */);
+		node->set_owner(scene_root);
+
+		Dictionary result;
+		result["name"] = String(node->get_name()); // may differ from requested name if disambiguated
+		result["class"] = node->get_class();
+		result["path"] = String(scene_root->get_path_to(node));
+		return result;
+	}
+
+	if (p_method == "editor.delete_node") {
+		if (p_params.get_type() != Variant::DICTIONARY) {
+			r_has_error = true;
+			r_error_code = -32602;
+			r_error_message = "Invalid params: expected object with 'node_path'";
+			return Variant();
+		}
+		Dictionary params = p_params;
+		if (!params.has("node_path") || params["node_path"].get_type() != Variant::STRING) {
+			r_has_error = true;
+			r_error_code = -32602;
+			r_error_message = "Invalid params: missing or non-string 'node_path'";
+			return Variant();
+		}
+		Node *scene_root = en->get_edited_scene();
+		if (!scene_root) {
+			r_has_error = true;
+			r_error_code = -32000;
+			r_error_message = "No edited scene";
+			return Variant();
+		}
+		String node_path = params["node_path"];
+		Node *node = scene_root->get_node_or_null(NodePath(node_path));
+		if (!node) {
+			r_has_error = true;
+			r_error_code = -32000;
+			r_error_message = "Node not found: " + node_path;
+			return Variant();
+		}
+		if (node == scene_root) {
+			r_has_error = true;
+			r_error_code = -32000;
+			r_error_message = "Cannot delete the scene root";
+			return Variant();
+		}
+		Node *parent = node->get_parent();
+		if (parent) {
+			parent->remove_child(node);
+		}
+		node->queue_free();
+		return true;
 	}
 
 	r_has_error = true;

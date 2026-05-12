@@ -169,5 +169,40 @@ def godot_set_property(node_path: str, property: str, value: Any) -> Any:
     })
 
 
+@mcp.tool()
+def godot_add_node(parent_path: str, class_: str, name: str | None = None) -> dict:
+    """Add a new node as a child of an existing node in the currently edited scene.
+
+    Args:
+        parent_path: Path of the parent node, relative to the scene root.
+            Use "." to add a child to the root.
+        class_: Class name of the new node (e.g. "Sprite2D", "Label", "Node3D").
+            Must be a registered subclass of Node.
+        name: Optional name for the new node. Defaults to the class name.
+            If a sibling with the same name exists, Godot will append a suffix.
+
+    Returns an object with the actual name, class, and path of the created node.
+    The node is owned by the scene root, so it will be saved when the scene is saved.
+    """
+    params: dict[str, Any] = {"parent_path": parent_path, "class": class_}
+    if name is not None:
+        params["name"] = name
+    return _rpc_call("editor.add_node", params)
+
+
+@mcp.tool()
+def godot_delete_node(node_path: str) -> bool:
+    """Delete a node from the currently edited scene.
+
+    Args:
+        node_path: Path of the node to delete, relative to the scene root.
+            Cannot be the scene root itself ("."). All descendants are deleted
+            along with the node.
+
+    Returns True on success.
+    """
+    return _rpc_call("editor.delete_node", {"node_path": node_path})
+
+
 if __name__ == "__main__":
     mcp.run()
