@@ -100,10 +100,16 @@ Either wait one frame (any cheap intervening call works, e.g. another
   whether a play session is now active.
 - `editor.stop_playing` → stop any running play session.
 - `editor.is_playing` → bool, whether a play session is currently active.
+- `editor.get_recent_log` `{limit?: 200}` → array of recent Output-dock
+  messages, each `{text, type, count}` where `type` is `std | error |
+  warning | editor | std_rich`. While play mode is active, this includes
+  the running game's prints and errors (forwarded via Godot's debugger
+  protocol). Closes the debug loop: open → modify → save → play → read
+  log → iterate.
 
 Further write methods (`move_node`, `reparent_node`, per-property
-`get_property` for efficient single-value reads, capture of the running
-game's stdout/stderr back through the RPC) are future work.
+`get_property` for efficient single-value reads, incremental log tailing
+with a since-cursor) are future work.
 
 ### F4 — MCP proxy
 
@@ -130,7 +136,8 @@ Then start Godot with `--editor-rpc-port 6664` (or set `GODOT_RPC_PORT`).
 
 Tools exposed:
 - read: `godot_ping`, `godot_get_current_scene_path`, `godot_get_scene_tree`,
-  `godot_list_open_scenes`, `godot_get_selected_nodes`, `godot_is_playing`
+  `godot_list_open_scenes`, `godot_get_selected_nodes`, `godot_is_playing`,
+  `godot_get_recent_log`
 - write: `godot_open_scene`, `godot_save_scene`, `godot_save_scene_as`,
   `godot_set_property`, `godot_add_node`, `godot_delete_node`,
   `godot_select_nodes`
@@ -171,7 +178,7 @@ and push to a fresh branch on your upstream fork.
 ## Known v2 work
 
 - More write methods on F3 (`move_node`, `reparent_node`, per-property
-  `get_property`, capture game stdout/stderr from play sessions)
+  `get_property`, incremental log tailing with a since-cursor)
 - F3 JSON-RPC ids round-trip as `1.0` instead of `1` — Godot's `Variant`→JSON
   serializer doesn't distinguish int from float
 - F2 property dumps are verbose — a `--inspect-scene-compact` flag that

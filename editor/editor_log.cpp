@@ -261,6 +261,38 @@ void EditorLog::clear() {
 	_clear_request();
 }
 
+Array EditorLog::get_recent_messages(int p_limit) const {
+	Array out;
+	int total = messages.size();
+	int start = p_limit > 0 && total > p_limit ? total - p_limit : 0;
+	for (int i = start; i < total; i++) {
+		const LogMessage &m = messages[i];
+		Dictionary d;
+		d["text"] = m.text;
+		switch (m.type) {
+			case MSG_TYPE_ERROR:
+				d["type"] = "error";
+				break;
+			case MSG_TYPE_WARNING:
+				d["type"] = "warning";
+				break;
+			case MSG_TYPE_EDITOR:
+				d["type"] = "editor";
+				break;
+			case MSG_TYPE_STD_RICH:
+				d["type"] = "std_rich";
+				break;
+			case MSG_TYPE_STD:
+			default:
+				d["type"] = "std";
+				break;
+		}
+		d["count"] = m.count;
+		out.push_back(d);
+	}
+	return out;
+}
+
 void EditorLog::_process_message(const String &p_msg, MessageType p_type, bool p_clear) {
 	if (messages.size() > 0 && messages[messages.size() - 1].text == p_msg && messages[messages.size() - 1].type == p_type) {
 		// If previous message is the same as the new one, increase previous count rather than adding another

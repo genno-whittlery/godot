@@ -38,6 +38,7 @@
 #include "core/variant/array.h"
 #include "core/variant/dictionary.h"
 #include "editor/editor_data.h"
+#include "editor/editor_log.h"
 #include "editor/editor_node.h"
 #include "editor/run/editor_run_bar.h"
 #include "scene/main/node.h"
@@ -568,6 +569,24 @@ Variant EditorRpcServer::dispatch(const String &p_method, const Variant &p_param
 	if (p_method == "editor.is_playing") {
 		EditorRunBar *bar = EditorRunBar::get_singleton();
 		return bar ? bar->is_playing() : false;
+	}
+
+	if (p_method == "editor.get_recent_log") {
+		int limit = 200;
+		if (p_params.get_type() == Variant::DICTIONARY) {
+			Dictionary params = p_params;
+			if (params.has("limit")) {
+				limit = (int)params["limit"];
+				if (limit <= 0) {
+					limit = 200;
+				}
+			}
+		}
+		EditorLog *log = EditorNode::get_log();
+		if (!log) {
+			return Array();
+		}
+		return log->get_recent_messages(limit);
 	}
 
 	r_has_error = true;

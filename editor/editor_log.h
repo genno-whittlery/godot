@@ -185,6 +185,12 @@ public:
 
 	void clear();
 
+	// Returns the last p_limit log messages as an Array of Dictionaries with
+	// keys: text (String), type (String — "std", "error", "warning", "editor",
+	// "std_rich"), count (int). Exposed for the editor RPC so external tools
+	// can read aggregated editor + game output.
+	Array get_recent_messages(int p_limit = 1000) const;
+
 	EditorLog();
 	~EditorLog();
 };

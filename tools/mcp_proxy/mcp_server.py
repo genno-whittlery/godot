@@ -274,5 +274,23 @@ def godot_is_playing() -> bool:
     return _rpc_call("editor.is_playing")
 
 
+@mcp.tool()
+def godot_get_recent_log(limit: int = 200) -> list:
+    """Return the most recent messages from the editor's Output dock.
+
+    This aggregates both editor messages and the running game's stdout/stderr
+    (forwarded via Godot's debugger protocol when play mode is active), so it
+    closes the debug loop: open a scene, modify it, play, then read prints
+    and errors back here without leaving the conversation.
+
+    Args:
+        limit: Max number of recent messages to return (default 200).
+
+    Returns an array of objects with: text, type ("std"|"error"|"warning"|
+    "editor"|"std_rich"), count (occurrences of consecutive duplicates).
+    """
+    return _rpc_call("editor.get_recent_log", {"limit": limit})
+
+
 if __name__ == "__main__":
     mcp.run()
