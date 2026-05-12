@@ -283,13 +283,36 @@ def godot_get_recent_log(limit: int = 200) -> list:
     closes the debug loop: open a scene, modify it, play, then read prints
     and errors back here without leaving the conversation.
 
+    Use this for the first poll to see history. For subsequent polls, use
+    `godot_tail_log` with the highest index you saw — it's cheaper.
+
     Args:
         limit: Max number of recent messages to return (default 200).
 
-    Returns an array of objects with: text, type ("std"|"error"|"warning"|
-    "editor"|"std_rich"), count (occurrences of consecutive duplicates).
+    Returns an array of objects with: index, text, type ("std"|"error"|
+    "warning"|"editor"|"std_rich"), count (consecutive duplicates).
     """
     return _rpc_call("editor.get_recent_log", {"limit": limit})
+
+
+@mcp.tool()
+def godot_tail_log(since: int = 0) -> dict:
+    """Return only the log messages added since the given index.
+
+    Designed for cheap polling: after each call, pass back the returned
+    `next_since` as the next `since` to fetch only what's new.
+
+    Args:
+        since: Index cursor from a previous tail (start with 0).
+
+    Returns an object with:
+        - messages: array of {index, text, type, count}, may be empty
+        - next_since: the cursor to pass on the next call
+
+    If the buffer was cleared (next_since < since), the call returns the
+    full current buffer so the client can re-sync.
+    """
+    return _rpc_call("editor.tail_log", {"since": since})
 
 
 if __name__ == "__main__":

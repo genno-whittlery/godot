@@ -589,6 +589,26 @@ Variant EditorRpcServer::dispatch(const String &p_method, const Variant &p_param
 		return log->get_recent_messages(limit);
 	}
 
+	if (p_method == "editor.tail_log") {
+		int since = 0;
+		if (p_params.get_type() == Variant::DICTIONARY) {
+			Dictionary params = p_params;
+			if (params.has("since")) {
+				since = (int)params["since"];
+			}
+		}
+		EditorLog *log = EditorNode::get_log();
+		Dictionary result;
+		if (!log) {
+			result["messages"] = Array();
+			result["next_since"] = 0;
+			return result;
+		}
+		result["messages"] = log->get_messages_since(since);
+		result["next_since"] = log->get_messages_count();
+		return result;
+	}
+
 	r_has_error = true;
 	r_error_code = -32601;
 	r_error_message = "Method not found: " + p_method;

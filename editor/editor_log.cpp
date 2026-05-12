@@ -261,36 +261,61 @@ void EditorLog::clear() {
 	_clear_request();
 }
 
+static Dictionary _editor_log_message_to_dict(const EditorLog::MessageType &p_type, const String &p_text, int p_count, int p_index) {
+	Dictionary d;
+	d["index"] = p_index;
+	d["text"] = p_text;
+	switch (p_type) {
+		case EditorLog::MSG_TYPE_ERROR:
+			d["type"] = "error";
+			break;
+		case EditorLog::MSG_TYPE_WARNING:
+			d["type"] = "warning";
+			break;
+		case EditorLog::MSG_TYPE_EDITOR:
+			d["type"] = "editor";
+			break;
+		case EditorLog::MSG_TYPE_STD_RICH:
+			d["type"] = "std_rich";
+			break;
+		case EditorLog::MSG_TYPE_STD:
+		default:
+			d["type"] = "std";
+			break;
+	}
+	d["count"] = p_count;
+	return d;
+}
+
 Array EditorLog::get_recent_messages(int p_limit) const {
 	Array out;
 	int total = messages.size();
 	int start = p_limit > 0 && total > p_limit ? total - p_limit : 0;
 	for (int i = start; i < total; i++) {
 		const LogMessage &m = messages[i];
-		Dictionary d;
-		d["text"] = m.text;
-		switch (m.type) {
-			case MSG_TYPE_ERROR:
-				d["type"] = "error";
-				break;
-			case MSG_TYPE_WARNING:
-				d["type"] = "warning";
-				break;
-			case MSG_TYPE_EDITOR:
-				d["type"] = "editor";
-				break;
-			case MSG_TYPE_STD_RICH:
-				d["type"] = "std_rich";
-				break;
-			case MSG_TYPE_STD:
-			default:
-				d["type"] = "std";
-				break;
-		}
-		d["count"] = m.count;
-		out.push_back(d);
+		out.push_back(_editor_log_message_to_dict(m.type, m.text, m.count, i));
 	}
 	return out;
+}
+
+Array EditorLog::get_messages_since(int p_since_index) const {
+	Array out;
+	int start = p_since_index < 0 ? 0 : p_since_index;
+	int total = messages.size();
+	if (start > total) {
+		// Buffer shrank — almost certainly a clear() happened. Return everything
+		// from 0 so the client can re-sync.
+		start = 0;
+	}
+	for (int i = start; i < total; i++) {
+		const LogMessage &m = messages[i];
+		out.push_back(_editor_log_message_to_dict(m.type, m.text, m.count, i));
+	}
+	return out;
+}
+
+int EditorLog::get_messages_count() const {
+	return messages.size();
 }
 
 void EditorLog::_process_message(const String &p_msg, MessageType p_type, bool p_clear) {

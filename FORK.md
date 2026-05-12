@@ -101,15 +101,19 @@ Either wait one frame (any cheap intervening call works, e.g. another
 - `editor.stop_playing` → stop any running play session.
 - `editor.is_playing` → bool, whether a play session is currently active.
 - `editor.get_recent_log` `{limit?: 200}` → array of recent Output-dock
-  messages, each `{text, type, count}` where `type` is `std | error |
-  warning | editor | std_rich`. While play mode is active, this includes
+  messages, each `{index, text, type, count}` where `type` is `std | error
+  | warning | editor | std_rich`. While play mode is active, this includes
   the running game's prints and errors (forwarded via Godot's debugger
   protocol). Closes the debug loop: open → modify → save → play → read
   log → iterate.
+- `editor.tail_log` `{since: int}` → cheap incremental polling primitive.
+  Returns `{messages, next_since}` — only entries with `index >= since`.
+  Pass the returned `next_since` back as the next `since`. If the buffer
+  was cleared (server's count regressed below `since`), the call returns
+  the full current buffer so the client can re-sync.
 
 Further write methods (`move_node`, `reparent_node`, per-property
-`get_property` for efficient single-value reads, incremental log tailing
-with a since-cursor) are future work.
+`get_property` for efficient single-value reads) are future work.
 
 ### F4 — MCP proxy
 
@@ -137,7 +141,7 @@ Then start Godot with `--editor-rpc-port 6664` (or set `GODOT_RPC_PORT`).
 Tools exposed:
 - read: `godot_ping`, `godot_get_current_scene_path`, `godot_get_scene_tree`,
   `godot_list_open_scenes`, `godot_get_selected_nodes`, `godot_is_playing`,
-  `godot_get_recent_log`
+  `godot_get_recent_log`, `godot_tail_log`
 - write: `godot_open_scene`, `godot_save_scene`, `godot_save_scene_as`,
   `godot_set_property`, `godot_add_node`, `godot_delete_node`,
   `godot_select_nodes`

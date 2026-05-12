@@ -186,10 +186,19 @@ public:
 	void clear();
 
 	// Returns the last p_limit log messages as an Array of Dictionaries with
-	// keys: text (String), type (String — "std", "error", "warning", "editor",
-	// "std_rich"), count (int). Exposed for the editor RPC so external tools
-	// can read aggregated editor + game output.
+	// keys: index (int — position in the buffer), text (String), type (String —
+	// "std", "error", "warning", "editor", "std_rich"), count (int). Exposed
+	// for the editor RPC so external tools can read aggregated editor + game
+	// output.
 	Array get_recent_messages(int p_limit = 1000) const;
+
+	// Returns messages with index >= p_since_index. Lets polling clients fetch
+	// only what's new since their last call. Indices reset to 0 after clear().
+	Array get_messages_since(int p_since_index) const;
+
+	// Returns the index that the next added message will have. Equivalent to
+	// the current messages buffer size. Lets clients seed their `since` cursor.
+	int get_messages_count() const;
 
 	EditorLog();
 	~EditorLog();
